@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JS Error Compiler - ML-powered JavaScript error detection</title>
+<style>
+:root{--bg:#eef2f6;--panel:#fff;--ink:#14202e;--mute:#5d6b7a;--line:#d3dbe4;--navy:#10243d;--accent:#0a7c7a;
+--err:#c0392b;--warn:#b7791f;--info:#2b6cb0;--code:#0f1b2a;--codeink:#d6e2f0;--gut:#6b7f95}
+@media(prefers-color-scheme:dark){:root{--bg:#0b141f;--panel:#13202f;--ink:#e3ecf5;--mute:#93a4b6;--line:#243549;--navy:#07101a;--accent:#2fc0bb;--err:#ff7b6b;--warn:#f0b64d;--info:#6bb0f5}}
+*{box-sizing:border-box}html,body{margin:0}
+body{font:16px/1.55 Georgia,"Times New Roman",serif;background:var(--bg);color:var(--ink)}
+header{background:var(--navy);color:#e8f0f8;padding:28px 5vw}
+header h1{margin:0 0 6px;font:700 clamp(1.5rem,3.5vw,2.3rem)/1.15 "Segoe UI",system-ui,sans-serif;letter-spacing:-.01em}
+header p{margin:0;max-width:70ch;color:#a9bdd1}
+main{display:grid;grid-template-columns:1.2fr 1fr;gap:20px;padding:20px 5vw;max-width:1500px;margin:auto}
+@media(max-width:900px){main{grid-template-columns:1fr}}
+section{background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.bar{display:flex;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);font:600 .9rem "Segoe UI",system-ui,sans-serif}
+.bar span{flex:1}
+button,select{font:600 .9rem "Segoe UI",system-ui,sans-serif;border-radius:4px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 12px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#04201f}
+button:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--info);outline-offset:1px}
+.ed{display:flex;background:var(--code);height:520px}
+#gutter{padding:12px 8px;text-align:right;color:var(--gut);font:14px/1.5 Consolas,Menlo,monospace;user-select:none;overflow:hidden;min-width:44px;white-space:pre}
+#gutter .e{color:#ff7b6b;font-weight:700}#gutter .w{color:#f0b64d;font-weight:700}#gutter .i{color:#6bb0f5}
+textarea{flex:1;resize:none;border:0;background:transparent;color:var(--codeink);padding:12px;font:14px/1.5 Consolas,Menlo,monospace;white-space:pre;overflow:auto;tab-size:2}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);border-bottom:1px solid var(--line);font-family:"Segoe UI",system-ui,sans-serif}
+.stats div{padding:12px 14px;border-right:1px solid var(--line)}.stats div:last-child{border:0}
+.stats b{display:block;font-size:1.6rem;line-height:1.1}.stats small{color:var(--mute)}
+#list{max-height:430px;overflow:auto;margin:0;padding:0;list-style:none}
+#list li{padding:11px 14px;border-bottom:1px solid var(--line);border-left:4px solid var(--info);cursor:pointer;font-family:"Segoe UI",system-ui,sans-serif;font-size:.93rem}
+#list li:hover{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+#list li.error{border-left-color:var(--err)}#list li.warning{border-left-color:var(--warn)}
+#list .m{display:flex;gap:8px;color:var(--mute);font-size:.8rem;margin-bottom:2px}
+#list .t{font-weight:700;color:var(--ink)}
+.empty{padding:28px 18px;color:var(--mute);font-family:"Segoe UI",system-ui,sans-serif}
+.msg{padding:10px 14px;color:var(--err);font-family:"Segoe UI",system-ui,sans-serif}
+footer{padding:10px 5vw 28px;color:var(--mute);font:.85rem "Segoe UI",system-ui,sans-serif;max-width:1500px;margin:auto}
+</style></head><body>
+<header><h1>Intelligent Web Application Compiler for JavaScript Errors</h1>
+<p>Paste JavaScript. A parser, scope analysis and a machine-learning classifier check it together and point to the exact lines that will fail.</p></header>
+<main>
+<section><div class="bar"><span>Source code</span>
+<select id="sample" aria-label="Load sample"><option value="">Load a sample...</option><option value="a">Syntax errors</option><option value="b">Runtime and logic bugs</option><option value="c">Clean code</option></select>
+<button class="primary" id="run">Compile and analyze</button></div>
+<div class="ed"><div id="gutter">1</div><textarea id="code" spellcheck="false" aria-label="JavaScript code"></textarea></div></section>
+<section><div class="bar"><span>Results</span></div>
+<div class="stats"><div><b id="sErr">-</b><small>Errors</small></div><div><b id="sWarn">-</b><small>Warnings</small></div><div><b id="sInfo">-</b><small>Notes</small></div><div><b id="sScore">-</b><small>Health score</small></div></div>
+<div id="out"><div class="empty">Nothing analyzed yet. Paste code or load a sample, then choose Compile and analyze.</div></div></section>
+</main>
+<footer>Detection pipeline: Esprima parser, static scope analysis, TF-IDF + Logistic Regression line classifier.</footer>
+<script>
+const S={
+a:`function calc(a, b {\n  var total = a + b;\n  console.log('result'\n  return total;\n}\nlet = 5;\nif (total > 3 {\n  alert(total);\n}`,
+b:`const limit = 10;\nlet user = null;\n\nfunction load(items) {\n  for (var i = 0; i <= items.length; i++) {\n    if (count = 5) {\n      console.log(items[i]);\n    }\n  }\n  limit = 20;\n  console.log(user.name);\n  if (total === NaN) { eval(code); }\n}`,
+c:`const prices = [4, 8, 15];\n\nfunction sum(list) {\n  return list.reduce((acc, n) => acc + n, 0);\n}\n\nconst total = sum(prices);\nconsole.log(total);`};
+const $=id=>document.getElementById(id),code=$('code'),gut=$('gutter');let marks={};
+function gutter(){const n=code.value.split('\n').length;gut.innerHTML=Array.from({length:n},(_,i)=>{const m=marks[i+1];return `<div class="${m||''}">${i+1}</div>`}).join('');gut.scrollTop=code.scrollTop}
+code.addEventListener('input',()=>{marks={};gutter()});code.addEventListener('scroll',()=>gut.scrollTop=code.scrollTop);
+code.addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();document.execCommand('insertText',false,'  ')}});
+$('sample').onchange=e=>{if(S[e.target.value]){code.value=S[e.target.value];marks={};gutter();run()}};
+const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+async function run(){
+ $('run').disabled=true;$('run').textContent='Analyzing...';
+ try{const r=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:code.value})});
+  const d=await r.json();if(!r.ok){$('out').innerHTML=`<div class="msg">${esc(d.error||'Analysis failed.')}</div>`;return}
+  $('sErr').textContent=d.summary.error;$('sWarn').textContent=d.summary.warning;$('sInfo').textContent=d.summary.info;$('sScore').textContent=d.score;
+  marks={};d.issues.forEach(i=>{const c=i.severity[0];if(!marks[i.line]||c==='e')marks[i.line]=c});gutter();
+  $('out').innerHTML=d.issues.length?'<ul id="list">'+d.issues.map(i=>`<li class="${i.severity}" data-l="${i.line}"><div class="m"><span class="t">${esc(i.type)}</span><span>line ${i.line}</span><span>${i.source}</span></div>${esc(i.message)}</li>`).join('')+'</ul>':'<div class="empty">No problems found. This code parsed cleanly and the model flagged nothing.</div>';
+  document.querySelectorAll('#list li').forEach(li=>li.onclick=()=>{const l=+li.dataset.l;const p=code.value.split('\n').slice(0,l-1).join('\n').length+(l>1?1:0);code.focus();code.setSelectionRange(p,p+(code.value.split('\n')[l-1]||'').length);code.scrollTop=(l-3)*21})
+ }catch(e){$('out').innerHTML='<div class="msg">Cannot reach the server. Start it with python app.py.</div>'}
+ finally{$('run').disabled=false;$('run').textContent='Compile and analyze'}}
+$('run').onclick=run;code.value=S.b;gutter();
+</script></body></html>
